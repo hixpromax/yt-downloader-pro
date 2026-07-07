@@ -48,9 +48,22 @@ jobs:
             --collect-all certifi `
             app.py
 
-      - name: EXE'yi artifact olarak kaydet
+      - name: Inno Setup kur
+        shell: pwsh
+        run: |
+          $url = "https://jrsoftware.org/download.php/is.exe"
+          Invoke-WebRequest -Uri $url -OutFile innosetup.exe -UseBasicParsing
+          Start-Process -FilePath innosetup.exe -ArgumentList "/VERYSILENT /NORESTART" -Wait
+
+      - name: Setup EXE üret (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          & $iscc installer.iss
+
+      - name: Setup EXE'yi artifact olarak kaydet
         uses: actions/upload-artifact@v4
         with:
-          name: YouTube-Indirici-Windows
-          path: "dist/YouTube Indirici/"
+          name: YouTube-Indirici-Setup
+          path: setup_output/YouTube_Indirici_Setup.exe
           retention-days: 30
