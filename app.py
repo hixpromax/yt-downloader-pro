@@ -9,6 +9,10 @@ import os, re, shutil, subprocess, threading, tempfile, ssl, sys
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
+# Windows'ta ffmpeg/komut penceresi açılmasın
+CREATE_NO_WINDOW = 0x08000000
+SUBPROCESS_FLAGS = CREATE_NO_WINDOW if sys.platform == "win32" else 0
+
 # certifi — SSL düzeltmesi
 try:
     import certifi
@@ -386,7 +390,8 @@ class App:
                     self.root.after(0,lambda: self._durum("MP3'e dönüştürülüyor…"))
                     subprocess.run([FFMPEG,"-y","-i",ham,"-vn",
                                     "-codec:a","libmp3lame","-q:a","2",hedef],
-                                   check=True,capture_output=True)
+                                   check=True, capture_output=True,
+                                   creationflags=SUBPROCESS_FLAGS)
                     son=hedef
                 else:
                     son=os.path.join(self.hedef,f"{ad}.m4a")
@@ -406,10 +411,17 @@ class App:
                                    filename=f"_ses_{os.getpid()}")
                     gecici.append(sp)
                     son=os.path.join(self.hedef,f"{ad}.mp4")
-                    self.root.after(0,lambda: self._durum("Birleştiriliyor…"))
-                    subprocess.run([FFMPEG,"-y","-i",vp,"-i",sp,
-                                    "-c:v","copy","-c:a","aac","-strict","experimental",son],
-                                   check=True,capture_output=True)
+                    self.root.after(0,lambda: self._durum("Birleştiriliyor… (bu biraz sürebilir)"))
+                    result = subprocess.run(
+                        [FFMPEG,"-y","-i",vp,"-i",sp,
+                         "-c:v","copy","-c:a","aac","-strict","experimental",
+                         "-movflags","+faststart", son],
+                        capture_output=True,
+                        creationflags=SUBPROCESS_FLAGS)
+                    # returncode 0 veya 1 olabilir ama dosya oluştuysa başarılıdır
+                    if not os.path.exists(son) or os.path.getsize(son) < 1024:
+                        raise subprocess.CalledProcessError(
+                            result.returncode, FFMPEG, result.stderr)
                 else:
                     son=ak.download(output_path=self.hedef,filename=f"{ad}.mp4")
             self.root.after(0,self._indir_bitti,son)
